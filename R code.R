@@ -1,0 +1,70 @@
+required_pkgs <- c("WDI", "tidyverse", "scales")
+to_install <- required_pkgs[!required_pkgs %in% rownames(installed.packages())]
+if (length(to_install) > 0) install.packages(to_install, dependencies = TRUE)
+
+library(WDI)
+library(tidyverse)
+library(scales)
+
+
+options(scipen = 999)
+
+start_year <- 1990
+end_year   <- 2024
+x_breaks   <- seq(start_year, end_year, by = 4)
+
+wb_data <- WDI(
+  country   = "TR",
+  indicator = c(gdp_pc_const = "NY.GDP.PCAP.KD", 
+                lfpr_total = "SL.TLF.CACT.ZS"),
+  start     = start_year,
+  end       = end_year,
+  extra     = FALSE
+) %>% 
+  arrange(year) %>%
+  filter(!is.na(gdp_pc_const)) 
+ggplot(wb_data, aes(x = year, y = gdp_pc_const)) +
+  geom_area(fill = "#0072B2", alpha = 0.3) +
+  geom_line(color = "#0072B2", linewidth = 1.2) +
+  scale_x_continuous(breaks = x_breaks) +
+  scale_y_continuous(labels = label_number(big.mark = ".", decimal.mark = ",")) +
+  labs(
+    title = "GDP per Capita in Turkiye (1990-2024)",
+    subtitle = "Resorce: World Bank",
+    x = "Years", y = "GDP per Capita ($)"
+  ) +
+  theme_minimal()
+ggplot(wb_data, aes(x = year, y = lfpr_total / 100)) +
+  geom_line(color = "#D55E00", linewidth = 1.2) +
+  geom_point(color = "#D55E00", size = 2) +
+  scale_x_continuous(breaks = x_breaks) +
+  scale_y_continuous(labels = percent_format(accuracy = 0.5)) +
+  labs(
+    title = "Labor Force Participation Rate in Turkiye",
+    subtitle = "Resorce: World Bank",
+    x = "Years", y = "The Rate (%)"
+  ) +
+  theme_light()
+
+base_values <- wb_data %>% filter(year == 1990)
+
+comp_index <- wb_data %>%
+  mutate(
+    gdp_idx  = (gdp_pc_const / base_values$gdp_pc_const) * 100,
+    lfpr_idx = (lfpr_total / base_values$lfpr_total) * 100
+  ) %>%
+  select(year, gdp_idx, lfpr_idx) %>%
+  pivot_longer(cols = -year, names_to = "degisken", values_to = "deger")
+
+ggplot(comp_index, aes(x = year, y = deger, color = degisken)) +
+  geom_line(linewidth = 1.3) +
+  scale_color_manual(
+    values = c("gdp_idx" = "#0072B2", "lfpr_idx" = "#D55E00"),
+    labels = c("GDP per Capita Index", "Labor Force Participation Index")
+  ) +
+  scale_x_continuous(breaks = x_breaks) +
+  labs(
+    title = "Comparative Trends in Income and Labor Force Participation",
+    x = "Years", y = "Index Value (1990=100)", color = "Variables"
+  ) +
+  theme_classic()
